@@ -11,8 +11,9 @@ builds:
       - -s -w -X github.com/xujiahua/alertmanager-webhook-feishu/cmd.version={{.Version}} -X github.com/xujiahua/alertmanager-webhook-feishu/cmd.commit={{.Commit}} -X github.com/xujiahua/alertmanager-webhook-feishu/cmd.date={{.Date}} -X github.com/xujiahua/alertmanager-webhook-feishu/cmd.builtBy=goreleaser
     goos:
       - linux
-      - windows
-      - darwin
+    goarch:
+      - amd64
+      - arm64
 dockers:
   -
     # GOOS of the built binaries/packages that should be used.
@@ -28,16 +29,16 @@ dockers:
     dockerfile: Dockerfile.goreleaser
 
 archives:
-  - replacements:
-      darwin: Darwin
-      linux: Linux
-      windows: Windows
-      386: i386
-      amd64: x86_64
+  - name_template: >-
+      {{ .ProjectName }}_
+      {{- title .Os }}_
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else if eq .Arch "arm64" }}arm64
+      {{- else }}{{ .Arch }}{{ end }}
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  name_template: "{{ .Tag }}"
 changelog:
   sort: asc
   filters:
