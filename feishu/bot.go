@@ -146,6 +146,13 @@ func (b Bot) Send(alerts *model.WebhookMessage) error {
 		}
 	}
 
+	// 根据是否配置了 secret 决定使用哪种发送方式
+	if b.secret != "" {
+		logrus.Debugf("sending webhook with signature for group: %s", b.webhook)
+		return b.sdk.WebhookV2WithSign(b.webhook, b.secret, &buf)
+	}
+
+	logrus.Debugf("sending webhook without signature for group: %s", b.webhook)
 	return b.sdk.WebhookV2(b.webhook, &buf)
 }
 

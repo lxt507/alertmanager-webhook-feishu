@@ -5,10 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"io"
 	"net/http"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 type Sdk struct {
@@ -115,16 +116,19 @@ func (s Sdk) TenantAccessToken() (*tokenResponse, error) {
 
 // wired response:
 // response of success
-//{
-//    "Extra": null,
-//    "StatusCode": 0,
-//    "StatusMessage": "success"
-//}
+//
+//	{
+//	   "Extra": null,
+//	   "StatusCode": 0,
+//	   "StatusMessage": "success"
+//	}
+//
 // response of failure
-//{
-//    "code": 99991300,
-//    "msg": "invalid request body: not json, invalid character '\\n' in string literal"
-//}
+//
+//	{
+//	   "code": 99991300,
+//	   "msg": "invalid request body: not json, invalid character '\\n' in string literal"
+//	}
 type webhookV2Response struct {
 	StatusCode    int    `json:"StatusCode"`
 	StatusMessage string `json:"StatusMessage"`
@@ -139,6 +143,53 @@ func (s Sdk) WebhookV2(webhook string, body io.Reader) error {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
+
+	do, err := s.client.Do(req)
+	if err != nil {
+		return err
+	}
+	defer do.Body.Close()
+
+	var resp webhookV2Response
+	err = json.NewDecoder(do.Body).Decode(&resp)
+	if err != nil {
+		return err
+	}
+	logrus.Debug(resp)
+
+	if resp.Code != 0 {
+		return errors.New(fmt.Sprintf("code: %d, err: %s", resp.Code, resp.Msg))
+	}
+
+	return nil
+}
+
+func (s Sdk) WebhookV2WithSign(webhook string, secret string, body io.Reader) error {
+	logrus.Debugf("sending webhook with signature to: %s", webhook)
+
+	// 读取 body 内容用于生成签名
+	bodyBytes, err := io.ReadAll(body)
+	if err != nil {
+		return fmt.Errorf("read body failed: %w", err)
+	}
+
+	// 生成当前时间戳和签名
+	timestamp := time.Now().Unix()
+	sign, err := GenSign(secret, timestamp)
+	if err != nil {
+		return fmt.Errorf("generate sign failed: %w", err)
+	}
+
+	logrus.Debugf("timestamp: %d, signature: %s", timestamp, sign)
+
+	// 重新创建 reader
+	req, err := http.NewRequest("POST", webhook, bytes.NewReader(bodyBytes))
+	if err != nil {
+		return err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("X-Lark-Request-Timestamp", fmt.Sprintf("%d", timestamp))
+	req.Header.Set("X-Lark-Request-Signature", sign)
 
 	do, err := s.client.Do(req)
 	if err != nil {
