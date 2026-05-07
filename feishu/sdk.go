@@ -167,7 +167,7 @@ func (s Sdk) WebhookV2(webhook string, body io.Reader) error {
 func (s Sdk) WebhookV2WithSign(webhook string, secret string, body io.Reader) error {
 	logrus.Debugf("sending webhook with signature to: %s", webhook)
 
-	// 读取 body 内容用于生成签名
+	// 读取 body 内容
 	bodyBytes, err := io.ReadAll(body)
 	if err != nil {
 		return fmt.Errorf("read body failed: %w", err)
@@ -182,14 +182,29 @@ func (s Sdk) WebhookV2WithSign(webhook string, secret string, body io.Reader) er
 
 	logrus.Debugf("timestamp: %d, signature: %s", timestamp, sign)
 
-	// 重新创建 reader
-	req, err := http.NewRequest("POST", webhook, bytes.NewReader(bodyBytes))
+	// 将传入的 body 解析为 map[string]interface{}
+	var message map[string]interface{}
+	if err := json.Unmarshal(bodyBytes, &message); err != nil {
+		return fmt.Errorf("parse message json failed: %w", err)
+	}
+
+	// 向 map 中添加 timestamp 和 sign 键值对
+	message["timestamp"] = timestamp
+	message["sign"] = sign
+
+	// 重新 json.Marshal 生成新的字节流
+	newBody, err := json.Marshal(message)
+	if err != nil {
+		return fmt.Errorf("marshal message failed: %w", err)
+	}
+
+	logrus.Debugf("final request body: %s", string(newBody))
+
+	req, err := http.NewRequest("POST", webhook, bytes.NewReader(newBody))
 	if err != nil {
 		return err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("X-Lark-Request-Timestamp", fmt.Sprintf("%d", timestamp))
-	req.Header.Set("X-Lark-Request-Signature", sign)
 
 	do, err := s.client.Do(req)
 	if err != nil {
