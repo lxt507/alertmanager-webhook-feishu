@@ -3,15 +3,16 @@ package server
 import (
 	"encoding/json"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	"github.com/davecgh/go-spew/spew"
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/sirupsen/logrus"
 	"github.com/xujiahua/alertmanager-webhook-feishu/feishu"
 	"github.com/xujiahua/alertmanager-webhook-feishu/model"
-	"net/http"
-	"strings"
-	"time"
 )
 
 type Server struct {
@@ -35,6 +36,13 @@ func (s Server) hook(w http.ResponseWriter, r *http.Request) {
 	if !ok {
 		logrus.Errorf("group not found: %s", group)
 		http.Error(w, "group not found", http.StatusBadRequest)
+		return
+	}
+
+	// verify signature
+	if err := s.verifySignature(r, bot); err != nil {
+		logrus.Errorf("signature verification failed for group %s: %s", group, err)
+		http.Error(w, "signature verification failed", http.StatusUnauthorized)
 		return
 	}
 
@@ -91,6 +99,32 @@ func split(alerts model.WebhookMessage) []model.WebhookMessage {
 		groups = append(groups, alertsClone)
 	}
 	return groups
+}
+
+func (s Server) verifySignature(r *http.Request, bot feishu.IBot) error {
+	secret := bot.GetSecret()
+	if secret == "" {
+		// 未配置签名密钥，跳过验证
+		return nil
+	}
+
+	// 从请求头获取签名和时间戳
+	timestamp := r.Header.Get("X-Lark-Request-Timestamp")
+	sign := r.Header.Get("X-Lark-Request-Signature")
+
+	if timestamp == "" || sign == "" {
+		return fmt.Errorf("missing signature headers")
+	}
+
+	// 解析时间戳
+	var ts int64
+	_, err := fmt.Sscanf(timestamp, "%d", &ts)
+	if err != nil {
+		return fmt.Errorf("invalid timestamp format: %s", timestamp)
+	}
+
+	// 验证签名
+	return feishu.VerifySign(secret, ts, sign)
 }
 
 func (s Server) health(w http.ResponseWriter, r *http.Request) {

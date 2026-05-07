@@ -5,19 +5,21 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
+	"text/template"
+	"time"
+
 	"github.com/icza/gox/stringsx"
 	"github.com/sirupsen/logrus"
 	"github.com/xujiahua/alertmanager-webhook-feishu/config"
 	"github.com/xujiahua/alertmanager-webhook-feishu/feishu/rotate"
 	"github.com/xujiahua/alertmanager-webhook-feishu/model"
 	"github.com/xujiahua/alertmanager-webhook-feishu/tmpl"
-	"strings"
-	"text/template"
-	"time"
 )
 
 type Bot struct {
 	webhook     string
+	secret      string
 	openIDs     []string
 	rotator     *rotate.MentionRotator
 	sdk         *Sdk
@@ -50,6 +52,7 @@ func New(bot *config.Bot, helper *EmailHelper) (*Bot, error) {
 
 	return &Bot{
 		webhook:     bot.Webhook,
+		secret:      bot.Secret,
 		rotator:     rotator,
 		openIDs:     openIDs,
 		sdk:         NewSDK("", ""),
@@ -58,6 +61,10 @@ func New(bot *config.Bot, helper *EmailHelper) (*Bot, error) {
 		titlePrefix: bot.TitlePrefix,
 		metadata:    bot.MetaData,
 	}, nil
+}
+
+func (b Bot) GetSecret() string {
+	return b.secret
 }
 
 func getOpenIDs(mention *config.Mention, helper *EmailHelper) ([]string, error) {

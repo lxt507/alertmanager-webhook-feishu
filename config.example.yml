@@ -1,10 +1,12 @@
 bots:
   webhook: # webhook 是 group name
     url: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+    secret: "你的签名密钥"  # 新增：启用签名校验
     metadata:
       "链接地址": "https://www.baidu.com"
   webhook_mention_all: # group 可以理解为飞书机器人+圈人策略+飞书模板的组合
     url: https://open.feishu.cn/open-apis/bot/v2/hook/xxx
+    secret: "你的签名密钥"  # 新增
     mention:
       all: true
   webhook_mention_openids:

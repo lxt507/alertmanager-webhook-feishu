@@ -1,23 +1,22 @@
 package cmd
 
 import (
-	"fmt"
+	"os"
+	"os/signal"
+	"syscall"
+
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/xujiahua/alertmanager-webhook-feishu/config"
 	"github.com/xujiahua/alertmanager-webhook-feishu/feishu"
 	"github.com/xujiahua/alertmanager-webhook-feishu/server"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
-var port int
+var listenAddress string
 var emailEnabled bool
 var splitByStatus bool
 var cfgFile string
 
-// serverCmd represents the server command
 var serverCmd = &cobra.Command{
 	Use:   "server",
 	Short: "start webhook server",
@@ -55,8 +54,7 @@ var serverCmd = &cobra.Command{
 		// start server
 		s := server.New(bots, splitByStatus)
 		go func() {
-			address := fmt.Sprintf("0.0.0.0:%d", port)
-			handleErr(s.Start(address))
+			handleErr(s.Start(listenAddress))
 		}()
 
 		signalChan := make(chan os.Signal, 1)
@@ -73,7 +71,7 @@ var serverCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(serverCmd)
 
-	serverCmd.Flags().IntVarP(&port, "port", "p", 8000, "server port")
+	serverCmd.Flags().StringVarP(&listenAddress, "listen", "l", "0.0.0.0:8000", "server listen address")
 	serverCmd.Flags().BoolVarP(&emailEnabled, "email", "e", false, "if email supported, need feishu appid/secret for enabling")
 	serverCmd.Flags().BoolVarP(&splitByStatus, "split", "", false, "if enabled, sending firing and resolved alerts in two notifications")
 	serverCmd.Flags().StringVarP(&cfgFile, "config", "c", "", "config file for bot webhook")

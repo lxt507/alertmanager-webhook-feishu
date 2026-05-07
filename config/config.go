@@ -1,8 +1,9 @@
 package config
 
 import (
-	"gopkg.in/yaml.v2"
 	"io/ioutil"
+
+	"gopkg.in/yaml.v2"
 )
 
 type Mention struct {
@@ -20,8 +21,8 @@ type Template struct {
 }
 
 type Bot struct {
-	// Bot Webhook URL
 	Webhook     string            `yaml:"url"`
+	Secret      string            `yaml:"secret"`
 	Mention     *Mention          `yaml:"mention"`
 	Template    *Template         `yaml:"template"`
 	TitlePrefix string            `yaml:"title_prefix"`
