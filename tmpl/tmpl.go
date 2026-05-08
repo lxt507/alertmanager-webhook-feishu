@@ -4,11 +4,13 @@ import (
 	"embed"
 	"errors"
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/url"
+	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
+
+	"github.com/sirupsen/logrus"
 )
 
 //go:embed templates/*
@@ -92,10 +94,17 @@ func GetCustomTemplate(filename string) (*template.Template, error) {
 		return t, nil
 	}
 
-	t, err := template.New(filename).Funcs(funcMap).ParseFiles(filename)
+	// 使用文件名（不含路径）作为模板名称
+	t, err := template.New(filepath.Base(filename)).Funcs(funcMap).ParseFiles(filename)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to parse template %s: %w", filename, err)
 	}
+
+	// 如果解析后模板为空或不完整，返回错误
+	if t == nil {
+		return nil, fmt.Errorf("template %s parsed to nil", filename)
+	}
+
 	customTemplates[filename] = t
 
 	return t, nil
