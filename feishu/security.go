@@ -7,6 +7,7 @@ import (
 	"fmt"
 )
 
+// GenSign 生成签名,用于签名校验
 func GenSign(secret string, timestamp int64) (string, error) {
 	// 1. 将 timestamp + "\n" + 密钥 当做签名字符串
 	// 2. 使用 HmacSHA256 算法计算空字符串的签名结果
